@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./design.json": "./design.json",
-    "./actions.json": "./actions.json"
+    "./actions.json": "./actions.json",
+    "./scenario.json": "./scenario.json"
   }
 }
