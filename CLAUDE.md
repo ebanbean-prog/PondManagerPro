@@ -55,6 +55,19 @@ Check with `tools/balance` after any engine change (200 seeds per strategy):
 
 A balance change that makes the "pretty but harmful" strategy unlock Level 2 is a regression.
 
+## Balance targets (Level 2, provisional)
+
+Level 2 adds three design inputs (depth, outlet size, upstream rain gardens), three actions (lower the pond before storms, replant, dredge), up to 5 picks per season, and the Hurricane Year challenge (4 seasons: no flooding, no fish kill, within the annual budget). All Level 2 coefficients are placeholders until Eban verifies them. `tools/balance` prints these after the Level 1 table. Level 1 output must not change when Level 2 changes.
+
+| Hurricane Year strategy | Expected pass rate |
+| --- | --- |
+| Small pond, no actions | 0% |
+| Mow to the edge + algaecide | 0% (no fish kills, but floods and overspends) |
+| Standard pond, outlet cleared, no pre-storm drawdown | 0% |
+| Standard pond, outlet cleared, pond lowered before the hurricane | about 55 to 60% (depends on the storm size for the weather code) |
+| Standard pond + large outlet + 2 rain gardens, same actions | 100% |
+| Large pond + wide plant shelf, outlet cleared | 100% |
+
 ## Conventions
 
 - TypeScript strict mode; engine functions are pure and fully unit tested.

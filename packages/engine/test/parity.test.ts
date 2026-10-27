@@ -12,6 +12,14 @@ for (let size = 0; size < DESIGN.size.length; size++)
       for (let fountain = 0; fountain < DESIGN.fountain.length; fountain++)
         designs.push({ size, plants, trap, fountain });
 
+/** Fields added for Level 2 that the original engine never produced. Every other key must match exactly. */
+const NEW_REPORT_KEYS = ['stormDepth', 'capacity', 'stagePct'];
+const NEW_HISTORY_KEYS = ['stage', 'spend'];
+function omit<T extends object>(obj: T, keys: string[]): object {
+  return Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
+}
+const stripState = (s: GameState): object => ({ ...s, history: s.history.map(h => omit(h, NEW_HISTORY_KEYS)) });
+
 /** Deterministic pseudo-random action choices so every action gets exercised. */
 function picksFor(seed: number, season: number): string[] {
   const ids = ACTIONS.map(a => a.id);
@@ -31,13 +39,13 @@ describe('parity with the original engine.js', () => {
       for (let seed = 1; seed <= 25; seed++) {
         let a: GameState = newGame(design, seed);
         let b = legacy.newGame(design, seed);
-        expect(a).toEqual(b);
+        expect(stripState(a)).toEqual(b);
         for (let i = 0; i < 10; i++) {
           const picks = picksFor(seed, i);
           const ra = runSeason(a, picks);
           const rb = legacy.runSeason(b, picks);
-          expect(ra.report).toEqual(rb.report);
-          expect(ra.state).toEqual(rb.state);
+          expect(omit(ra.report, NEW_REPORT_KEYS)).toEqual(rb.report);
+          expect(stripState(ra.state)).toEqual(rb.state);
           a = ra.state;
           b = rb.state;
         }

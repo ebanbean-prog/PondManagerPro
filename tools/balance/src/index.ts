@@ -1,5 +1,6 @@
 import { SEASONS, newGame, runSeason, score } from '@pond-steward/engine';
 import { strategies } from './strategies.js';
+import { runLevel2 } from './level2.js';
 
 const SEEDS = 200;
 
@@ -22,3 +23,5 @@ for (const [name, st] of Object.entries(strategies)) {
   for (const [k, v] of Object.entries(res)) out[k] = +(v / SEEDS).toFixed(2);
   console.log(name.padEnd(22), JSON.stringify(out));
 }
+
+runLevel2();
