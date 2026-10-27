@@ -1,0 +1,9 @@
+[
+  { "id": "buffer", "name": "Leave a no-mow strip", "cost": 0, "tag": "Edge", "text": "Let grass grow tall along the water." },
+  { "id": "mow", "name": "Mow to the water", "cost": 400, "tag": "Edge", "text": "Neat and tidy, right to the edge." },
+  { "id": "flyer", "name": "Fertilizer flyer", "cost": 400, "tag": "Neighbors", "text": "Ask neighbors to skip summer fertilizer." },
+  { "id": "outlet", "name": "Clear the outlet", "cost": 600, "tag": "Upkeep", "text": "Pull debris from the overflow pipe." },
+  { "id": "trapclean", "name": "Empty the sediment trap", "cost": 1200, "tag": "Upkeep", "text": "Dig out the sand it caught.", "needs": "trap" },
+  { "id": "harvest", "name": "Pull weeds and algae", "cost": 1800, "tag": "Water", "text": "Rake out mats and weeds by hand." },
+  { "id": "algaecide", "name": "Spray algaecide", "cost": 1500, "tag": "Water", "text": "Clears green water fast." }
+]

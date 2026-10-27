@@ -1,0 +1,20 @@
+{
+  "size": [
+    { "id": 0, "name": "Small", "cost": 18000, "vol": 0.6, "note": "Cheapest. Water passes through fast." },
+    { "id": 1, "name": "Standard", "cost": 28000, "vol": 0.8, "note": "Meets the typical permit size." },
+    { "id": 2, "name": "Large", "cost": 40000, "vol": 1.0, "note": "Holds more storm water and settles more." }
+  ],
+  "plants": [
+    { "id": 0, "name": "No edge plants", "cost": 0, "p": 0, "note": "Grass down to the water." },
+    { "id": 1, "name": "Narrow plant shelf", "cost": 5000, "p": 0.5, "note": "A strip of native plants." },
+    { "id": 2, "name": "Wide plant shelf", "cost": 10000, "p": 1.0, "note": "Pickerelweed, rushes, cordgrass." }
+  ],
+  "trap": [
+    { "id": 0, "name": "No sediment trap", "cost": 0, "note": "Sand and silt go straight in." },
+    { "id": 1, "name": "Sediment trap", "cost": 8000, "note": "Catches sand at the inlet. Needs cleaning." }
+  ],
+  "fountain": [
+    { "id": 0, "name": "No fountain", "cost": 0, "note": "Quiet water." },
+    { "id": 1, "name": "Fountain", "cost": 6000, "note": "Adds oxygen. $500 a season to run." }
+  ]
+}
