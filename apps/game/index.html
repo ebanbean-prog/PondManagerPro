@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pond Steward</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@500&display=swap">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1>Pond Steward</h1><span class="lvl" id="lvl">Level 1 · Heron Lake HOA</span></div>
+    <div class="when" id="when"></div>
+  </header>
+
+  <div class="board">
+    <section class="scene" aria-label="Your pond">
+      <svg id="scene" viewBox="0 0 400 300" role="img" aria-label="Top-down view of the neighborhood pond">
+        <defs>
+          <clipPath id="pondClip"><path id="pondClipPath"/></clipPath>
+        </defs>
+        <rect width="400" height="300" fill="var(--grass)"/>
+        <path d="M0 0H400V40C320 54 240 30 160 46S40 40 0 52Z" fill="var(--grass-2)" opacity=".7"/>
+        <!-- street -->
+        <rect x="0" y="270" width="400" height="30" fill="var(--street)"/>
+        <line x1="0" y1="285" x2="400" y2="285" stroke="var(--grass)" stroke-width="1.5" stroke-dasharray="10 10" opacity=".7"/>
+        <!-- houses -->
+        <g id="houses"></g>
+        <!-- inlet pipe -->
+        <path d="M30 262 C 60 230, 70 200, 96 178" fill="none" stroke="var(--pipe)" stroke-width="5" stroke-linecap="round"/>
+        <rect id="trap" x="80" y="166" width="26" height="20" rx="3" fill="var(--sand)" stroke="var(--pipe)" stroke-width="1.5"/>
+        <!-- outlet -->
+        <path d="M316 150 H 392" stroke="var(--pipe)" stroke-width="5" stroke-linecap="round"/>
+        <rect id="outlet" x="306" y="140" width="18" height="20" rx="3" fill="var(--surface)" stroke="var(--pipe)" stroke-width="1.5"/>
+        <g id="swell">
+          <path id="buffer" fill="none" stroke="var(--tallgrass)" stroke-linejoin="round" stroke-dasharray="1.5 2.5" opacity="0"/>
+          <path id="shelf" fill="none" stroke="var(--marsh)" stroke-linejoin="round"/>
+          <path id="water" fill="var(--water-clear)"/>
+          <g clip-path="url(#pondClip)">
+            <ellipse id="deep" cx="205" cy="150" rx="70" ry="38" fill="#000" opacity=".10"/>
+            <ellipse id="silt" cx="118" cy="168" rx="60" ry="34" fill="var(--sand)" opacity="0"/>
+            <g id="algae"></g>
+            <g id="fishes"></g>
+          </g>
+          <g id="weeds"></g>
+          <g id="flowers"></g>
+          <g id="fountain" opacity="0">
+            <circle class="ring" cx="205" cy="150" r="10"/>
+            <circle class="ring r2" cx="205" cy="150" r="10"/>
+            <circle cx="205" cy="150" r="4" fill="#ffffff" opacity=".9"/>
+          </g>
+        </g>
+        <g id="rain"></g>
+        <text x="390" y="141" text-anchor="end" font-size="9" fill="var(--ink)" opacity=".7" font-family="var(--f-mono)">outlet</text>
+        <text x="40" y="232" font-size="9" fill="var(--ink)" opacity=".7" font-family="var(--f-mono)">inlet</text>
+      </svg>
+      <div class="meters" id="meters"></div>
+    </section>
+
+    <section class="panel" id="panel" aria-live="polite"></section>
+  </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
