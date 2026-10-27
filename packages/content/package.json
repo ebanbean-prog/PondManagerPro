@@ -1,0 +1,10 @@
+{
+  "name": "@pond-steward/content",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./design.json": "./design.json",
+    "./actions.json": "./actions.json"
+  }
+}
