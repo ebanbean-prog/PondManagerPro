@@ -139,3 +139,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .fish { transition: opacity .8s; animation: drift 7s ease-in-out infinite alternate; transform-box: fill-box; }
 @keyframes drift { from { transform: translateX(-6px); } to { transform: translateX(8px); } }
 @media (prefers-reduced-motion: reduce) { .raining #rain line, .ring, .fish { animation: none; } #rain line { opacity: .5; } #swell, #water { transition: none; } }
+
+/* Level 2 */
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.chart { display: grid; gap: 6px; min-width: 0; }
+.opt[id^="mode-"] { align-content: start; }
