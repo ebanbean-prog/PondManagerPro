@@ -6,6 +6,9 @@
   "exports": {
     "./design.json": "./design.json",
     "./actions.json": "./actions.json",
-    "./scenario.json": "./scenario.json"
+    "./scenario.json": "./scenario.json",
+    "./design-level2.json": "./design-level2.json",
+    "./actions-level2.json": "./actions-level2.json",
+    "./scenarios.json": "./scenarios.json"
   }
 }

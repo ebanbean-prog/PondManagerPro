@@ -1,4 +1,5 @@
-import type { GameState, HistoryEntry, Score } from './types.js';
+import { SCENARIOS } from './content.js';
+import type { ChallengeResult, GameState, HistoryEntry, Score } from './types.js';
 
 export function score(s: GameState): Score {
   const h = s.history;
@@ -10,4 +11,18 @@ export function score(s: GameState): Score {
   const flood = s.flooded === 0;
   const unlocked = flood && wq >= 2 && looks >= 2 && cost >= 2;
   return { wq, looks, cost, flood, unlocked, avgA, avgExp, avgMood, avgN };
+}
+
+/** Pass/fail for a challenge game (Hurricane Year): no flooding, no fish kill, and within budget. */
+export function scoreChallenge(s: GameState): ChallengeResult {
+  const challenge = s.scenario === undefined ? undefined : SCENARIOS.challenges[s.scenario];
+  if (!challenge) throw new RangeError('scoreChallenge needs a game started with a scenario');
+  let withinBudget = s.assessments === 0;
+  for (let i = 0; i < s.history.length; i += 2) {
+    const yearSpend = (s.history[i]?.spend ?? 0) + (s.history[i + 1]?.spend ?? 0);
+    if (yearSpend > challenge.annualBudget) withinBudget = false;
+  }
+  const noFlood = s.flooded === 0;
+  const noFishKill = s.fishKills === 0;
+  return { noFlood, noFishKill, withinBudget, passed: noFlood && noFishKill && withinBudget };
 }

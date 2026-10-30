@@ -1,0 +1,18 @@
+{
+  "depth": [
+    { "id": 0, "name": "Shallow", "cost": -2000, "volMult": 0.85, "internalWet": 0, "note": "Cheaper to dig. Holds less storm water." },
+    { "id": 1, "name": "Standard depth", "cost": 0, "volMult": 1.0, "internalWet": 0, "note": "The usual permitted depth." },
+    { "id": 2, "name": "Deep", "cost": 6000, "volMult": 1.2, "internalWet": 3, "note": "Holds more water, but the bottom can run low on oxygen in summer." }
+  ],
+  "outlet": [
+    { "id": 0, "name": "Small outlet", "cost": -500, "capacityAdj": -8, "removalAdj": 0.04, "clogRate": 1.4, "note": "Water leaves slowly, so it gets cleaned more. Floods sooner and clogs fast." },
+    { "id": 1, "name": "Standard outlet", "cost": 0, "capacityAdj": 0, "removalAdj": 0, "clogRate": 1.0, "note": "The usual pipe size." },
+    { "id": 2, "name": "Large outlet", "cost": 2500, "capacityAdj": 8, "removalAdj": -0.05, "clogRate": 0.8, "note": "Drains storms faster and clogs less. Water gets less time to settle." }
+  ],
+  "rainGardens": [
+    { "id": 0, "name": "No rain gardens", "cost": 0, "loadCut": 0, "peakCut": 0, "note": "Runoff goes straight to the pond." },
+    { "id": 1, "name": "2 rain gardens", "cost": 4000, "loadCut": 0.06, "peakCut": 2, "note": "Soak up some runoff before it reaches the pond." },
+    { "id": 2, "name": "4 rain gardens", "cost": 8000, "loadCut": 0.12, "peakCut": 4, "note": "Cuts nutrients and slows storm water." },
+    { "id": 3, "name": "6 rain gardens", "cost": 12000, "loadCut": 0.18, "peakCut": 6, "note": "The biggest cut, at the biggest price." }
+  ]
+}

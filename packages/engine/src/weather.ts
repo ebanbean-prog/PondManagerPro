@@ -1,5 +1,6 @@
 import { rngFrom } from './rng.js';
 import type { Weather } from './types.js';
+import { SCENARIOS } from './content.js';
 
 /** Weather schedule for the whole game, fixed by seed (same seed = same weather for a workshop). */
 export function makeWeather(seed: number): Weather[] {
@@ -28,4 +29,27 @@ export function makeWeather(seed: number): Weather[] {
     w.roll = r();
   }
   return list;
+}
+
+/** Fixed weather schedule for a challenge scenario. The structure comes from the scenario JSON; the seed only varies rain a little and which wet seasons are hot. */
+export function makeChallengeWeather(id: string, seed: number): Weather[] {
+  const challenge = SCENARIOS.challenges[id];
+  if (!challenge) throw new RangeError(`Unknown challenge "${id}"`);
+  const r = rngFrom(seed * 11 + 5);
+  return challenge.seasons.map((t, i) => {
+    const heat = t.season === 'wet' ? r() < (t.heatChance ?? 0.45) : false;
+    const rain = t.rain + Math.round(r() * (t.rainJitter ?? 0));
+    const roll = r();
+    const w: Weather = {
+      season: t.season, year: Math.floor(i / 2) + 1, kind: t.kind, rain, mult: t.mult,
+      storm: t.storm, big: t.big, heat, surprise: null, roll,
+    };
+    if (t.kind === 'drought') w.drought = true;
+    if (t.stormDepth !== undefined) {
+      w.stormDepth = t.stormDepth;
+      if (t.stormDepthJitter) w.stormDepth += Math.round(r() * t.stormDepthJitter);
+    }
+    if (t.windDamage) w.windDamage = true;
+    return w;
+  });
 }

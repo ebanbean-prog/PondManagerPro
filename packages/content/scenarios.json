@@ -1,0 +1,19 @@
+{
+  "level2": {
+    "maxPicks": 5,
+    "annualBudget": 3500
+  },
+  "challenges": {
+    "hurricane-year": {
+      "name": "Hurricane Year",
+      "budget": 60000,
+      "annualBudget": 3500,
+      "seasons": [
+        { "season": "wet", "kind": "typical", "rain": 30, "rainJitter": 6, "mult": 1.0, "storm": false, "big": false },
+        { "season": "dry", "kind": "typical", "rain": 11, "rainJitter": 4, "mult": 0.45, "storm": false, "big": false },
+        { "season": "wet", "kind": "hurricane", "rain": 56, "rainJitter": 6, "mult": 1.6, "storm": true, "big": true, "stormDepth": 100, "stormDepthJitter": 8, "windDamage": true },
+        { "season": "dry", "kind": "typical", "rain": 11, "rainJitter": 4, "mult": 0.45, "storm": false, "big": false }
+      ]
+    }
+  }
+}

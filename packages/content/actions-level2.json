@@ -1,0 +1,5 @@
+[
+  { "id": "predrain", "name": "Lower the pond before storms", "cost": 800, "tag": "Storms", "text": "Open the outlet early so the pond has room for a big rain." },
+  { "id": "replant", "name": "Replant the plant shelf", "cost": 1500, "tag": "Edge", "text": "Replace plants that died or washed out." },
+  { "id": "dredge", "name": "Dredge the silt", "cost": 4000, "tag": "Upkeep", "text": "Dig out silt to bring back the pond's depth." }
+]
