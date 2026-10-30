@@ -8,15 +8,26 @@ const money = n => (n < 0 ? '−$' : '$') + Math.abs(Math.round(n)).toLocaleStri
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 
+const HY = 'hurricane-year';
+const L1_DESIGN = () => ({ size: 1, plants: 1, trap: 0, fountain: 0 });
+const L2_DESIGN = () => ({ size: 1, plants: 1, trap: 0, fountain: 0, depth: 1, outlet: 1, rainGardens: 0 });
 const app = {
   phase: 'intro',
+  level: 1,            // 1 = Pond Steward, 2 = Pond Manager
+  mode: 'game',        // 'game' (five-year game) or 'hurricane' (Level 2 challenge)
   seed: 1000 + Math.floor(Math.random() * 9000),
-  design: { size: 1, plants: 1, trap: 0, fountain: 0 },
+  design: L1_DESIGN(),
   state: null, picks: [], report: null, flooded: new Set(), lastEdge: null
 };
+const maxPicks = () => POND.MAX_PICKS[app.level];
+const budget = () => (app.mode === 'hurricane' ? POND.SCENARIOS.challenges[HY].budget : POND.BUDGET);
+const actionList = () => (app.level === 2 ? POND.ALL_ACTIONS : POND.ACTIONS);
+const seasonCount = () => (app.state ? app.state.weather.length : POND.SEASONS);
+const levelLabel = () => app.level === 2 ? 'Level 2 · Pond Manager' : (store.get('pond-l2') ? 'Level 1 · Level 2 unlocked' : 'Level 1 · Heron Lake HOA');
 
 /* ---------- scene geometry ---------- */
 const BLOB = 'M118 112 C 140 80, 210 78, 252 92 C 296 106, 312 128, 306 156 C 300 190, 262 210, 214 212 C 160 214, 112 204, 98 178 C 86 156, 100 128, 118 112 Z';
+const GARDEN_SPOTS = [[70, 100], [200, 70], [290, 80], [340, 150], [330, 215], [110, 225]];
 const HOUSES = [[36, 70], [96, 52], [156, 46], [252, 46], [312, 54], [356, 96], [356, 206], [300, 236], [138, 238]];
 function seeded(n) { let a = n; return () => { a = (a * 9301 + 49297) % 233280; return a / 233280; }; }
 function buildStatic() {
@@ -105,6 +116,18 @@ function drawScene() {
   const trapFull = s && s.trapFill >= 0.6;
   $('#trap').setAttribute('fill', trapFull ? 'var(--warn)' : 'var(--sand)');
   $('#outlet').setAttribute('fill', clog > 0.55 ? 'var(--bad)' : clog > 0.3 ? 'var(--warn)' : 'var(--surface)');
+  // Level 2: rain gardens between the street and the pond, and the outlet pipe size
+  const gardens = $('#gardens'); gardens.innerHTML = '';
+  const nG = (d.rainGardens || 0) * 2;
+  for (let i = 0; i < nG; i++) {
+    const [gx, gy] = GARDEN_SPOTS[i];
+    const e = document.createElementNS(NS, 'ellipse');
+    e.setAttribute('cx', gx); e.setAttribute('cy', gy); e.setAttribute('rx', 11); e.setAttribute('ry', 6);
+    e.setAttribute('fill', 'var(--marsh)'); e.setAttribute('stroke', 'var(--flower)'); e.setAttribute('stroke-width', 1.5);
+    gardens.appendChild(e);
+  }
+  const ow = [14, 18, 24][d.outlet === undefined ? 1 : d.outlet];
+  $('#outlet').setAttribute('width', ow); $('#outlet').setAttribute('x', 324 - ow);
   document.querySelectorAll('#houses g').forEach(g => g.querySelector('.puddle').setAttribute('opacity', app.flooded.has(+g.dataset.i) ? 0.8 : 0));
 }
 
@@ -122,22 +145,35 @@ function moodWord(m) { return m >= 70 ? 'Pleased' : m >= 55 ? 'Content' : m >= 4
 function renderMeters() {
   const s = app.state, r = app.phase === 'result' ? app.report : null;
   const A = s ? s.A : 22, fish = s ? s.fish : 70, mood = s ? s.mood : 70;
-  const fund = s ? s.cash : POND.BUDGET - POND.designCost(app.design);
+  const fund = s ? s.cash : budget() - POND.designCost(app.design);
   const clarity = 100 - A;
+  const l2 = app.level === 2;
   $('#meters').innerHTML =
     meter('Water clarity', Math.round(clarity), clarity, '/100', r ? dlt(r.before.A - r.after.A) : '') +
     meter('Fish', Math.round(fish), fish, '/100', r ? dlt(r.after.fish - r.before.fish) : '') +
-    meter('Neighbors', moodWord(mood), mood, '', r ? dlt(r.after.mood - r.before.mood) : '') +
-    meter('Pond fund', money(fund), fund >= 15000 ? 80 : fund >= 6000 ? 50 : fund >= 0 ? 25 : 3, '', r ? dlt(r.after.cash - r.before.cash, true) : '');
+    meter('Neighbors', l2 ? Math.round(mood) : moodWord(mood), mood, l2 ? '/100' : '', r ? dlt(r.after.mood - r.before.mood) : '') +
+    meter('Pond fund', money(fund), fund >= 15000 ? 80 : fund >= 6000 ? 50 : fund >= 0 ? 25 : 3, '', r ? dlt(r.after.cash - r.before.cash, true) : '') +
+    (l2 ? level2Meters(s, r) : '');
+}
+/* Level 2 shows the hidden numbers too. For these, lower is better, so the bar shows how much room is left. */
+function level2Meters(s, r) {
+  const N = s ? s.N : 28, sed = s ? s.sed : 0, clog = s ? s.clog : 0.1;
+  const plants = s ? s.plants : POND.DESIGN.plants[app.design.plants].p;
+  return meter('Nutrients', Math.round(N), 100 - N, '/100', r ? dlt(r.before.N - r.after.N) : '') +
+    meter('Silt in pond', Math.round(sed * 100), 100 - sed * 100, '%', '') +
+    meter('Outlet clogged', Math.round(clog * 100), 100 - clog * 100, '%', r ? dlt((r.before.clog - clog) * 100) : '') +
+    meter('Plant shelf', Math.round(plants * 100), plants * 100, '%', '');
 }
 function renderWhen() {
   const s = app.state;
-  if (!s || app.phase === 'intro' || app.phase === 'design') { $('#when').innerHTML = app.phase === 'design' ? 'Design phase · build budget $50,000' : '5 years · 10 seasons'; return; }
-  const i = Math.min(app.phase === 'result' ? s.season - 1 : s.season, 9);
+  const hy = app.level === 2 && app.mode === 'hurricane';
+  if (!s || app.phase === 'intro' || app.phase === 'design') { $('#when').innerHTML = app.phase === 'design' ? `Design phase · build budget ${money(budget())}` : (hy ? '2 years · 4 seasons' : '5 years · 10 seasons'); return; }
+  const n = s.weather.length, years = n / 2;
+  const i = Math.min(app.phase === 'result' ? s.season - 1 : s.season, n - 1);
   const w = s.weather[i];
   let dots = '';
-  for (let k = 0; k < 10; k++) dots += `<i class="${k % 2 === 0 ? 'wet ' : ''}${k < i ? 'done' : k === i ? 'now' : ''}" title="${k % 2 === 0 ? 'Wet' : 'Dry'} season, year ${Math.floor(k / 2) + 1}"></i>`;
-  $('#when').innerHTML = app.phase === 'end' ? `Five years complete <span class="dots">${dots.replace(/now/g, 'done')}</span>` : `Year ${w.year} of 5 · ${w.season === 'wet' ? 'Wet season, Jun–Oct' : 'Dry season, Nov–May'} <span class="dots" aria-hidden="true">${dots}</span>`;
+  for (let k = 0; k < n; k++) dots += `<i class="${k % 2 === 0 ? 'wet ' : ''}${k < i ? 'done' : k === i ? 'now' : ''}" title="${k % 2 === 0 ? 'Wet' : 'Dry'} season, year ${Math.floor(k / 2) + 1}"></i>`;
+  $('#when').innerHTML = app.phase === 'end' ? `${hy ? 'Challenge complete' : 'Five years complete'} <span class="dots">${dots.replace(/now/g, 'done')}</span>` : `Year ${w.year} of ${years} · ${w.season === 'wet' ? 'Wet season, Jun–Oct' : 'Dry season, Nov–May'} <span class="dots" aria-hidden="true">${dots}</span>`;
 }
 
 /* ---------- panels ---------- */
@@ -163,19 +199,39 @@ function introPanel() {
   </ul>
   <p class="hint">Earn at least two stars on every goal without flooding anyone to unlock Level 2: Pond Manager.</p>
   <div class="code"><label for="seedIn">Weather code</label><input id="seedIn" inputmode="numeric" maxlength="4" value="${app.seed}"><span>Share a code so a whole group plays the same weather.</span></div>
-  <div class="btnrow"><button class="btn" id="go">Design your pond</button></div>`;
+  <div class="btnrow"><button class="btn" id="go">Design your pond</button>${store.get('pond-l2') ? '<button class="btn ghost" id="to2">Play Level 2: Pond Manager</button>' : ''}</div>`;
+}
+
+function introPanel2() {
+  const hy = POND.SCENARIOS.challenges[HY];
+  return `<span class="eyebrow">Level 2 · Pond Manager · Heron Lake HOA</span>
+  <h2>Now you run the numbers.</h2>
+  <p>Same pond, deeper decisions. Set the pond depth and outlet size, add rain gardens upstream, and work to a yearly budget. You will see the hidden numbers behind each season, plus graphs of rain and how close the pond came to overflowing.</p>
+  <ul class="goals">
+    <li>${ICON.water}<span><b>Depth and outlet.</b> A deeper pond and a larger outlet hold more storm water, but each has a catch.</span></li>
+    <li>${ICON.house}<span><b>Rain gardens.</b> Soak up runoff before it reaches the pond. They cost more than they look.</span></li>
+    <li>${ICON.coin}<span><b>A yearly budget of ${money(POND.ANNUAL_BUDGET)}.</b> Up to ${POND.MAX_PICKS[2]} actions a season, three of them new.</span></li>
+  </ul>
+  <div class="code"><label for="seedIn">Weather code</label><input id="seedIn" inputmode="numeric" maxlength="4" value="${app.seed}"><span>Share a code so a whole group plays the same weather.</span></div>
+  <div class="group"><div class="gh"><b>Choose your game</b></div><div class="opts">
+    <button class="opt" id="mode-game"><span class="n">Five-year game</span><span class="d">Ten seasons of typical Florida weather. Earn stars on every goal.</span></button>
+    <button class="opt" id="mode-hurricane"><span class="n">${hy.name} challenge</span><span class="d">Four seasons with a hurricane in year 2. No flooding, no fish kill, within budget. Pass it to unlock Level 3.</span></button>
+  </div></div>
+  <div class="btnrow"><button class="btn ghost" id="to1">Back to Level 1</button></div>`;
 }
 
 function designPanel() {
-  const D = POND.DESIGN, d = app.design, cost = POND.designCost(d), left = POND.BUDGET - cost;
-  const grp = (key, title) => `<div class="group"><div class="gh"><b>${title}</b></div><div class="opts">${D[key].map(o =>
-    `<button class="opt" data-k="${key}" data-v="${o.id}" aria-pressed="${d[key] === o.id}"><span class="n">${o.name}</span><span class="c">${o.cost ? money(o.cost) : 'Free'}</span><span class="d">${o.note}</span></button>`).join('')}</div></div>`;
+  const l2 = app.level === 2;
+  const D = POND.DESIGN, d = app.design, cost = POND.designCost(d), total = budget(), left = total - cost;
+  const costTag = c => c < 0 ? `Saves ${money(-c)}` : c ? money(c) : 'Free';
+  const grp = (key, title, src = D) => `<div class="group"><div class="gh"><b>${title}</b></div><div class="opts">${src[key].map(o =>
+    `<button class="opt" data-k="${key}" data-v="${o.id}" aria-pressed="${d[key] === o.id}"><span class="n">${o.name}</span><span class="c">${costTag(o.cost)}</span><span class="d">${o.note}</span></button>`).join('')}</div></div>`;
   return `<span class="eyebrow">Step 1 of 2 · Design</span>
   <h2>Build your pond</h2>
   <p class="hint">Money you don't spend now goes into the pond fund for upkeep and emergencies.</p>
-  ${grp('size', 'Pond size')}${grp('plants', 'Plants along the edge')}${grp('trap', 'Sediment trap at the inlet')}${grp('fountain', 'Fountain')}
-  <div class="budget"><div class="row"><span>Build cost</span><span class="${left < 0 ? 'over' : ''}">${money(cost)} of ${money(POND.BUDGET)}</span></div>
-  <div class="bar"><span class="${left < 0 ? 'low' : left < 8000 ? 'mid' : ''}" style="width:${Math.min(100, cost / POND.BUDGET * 100)}%"></span></div>
+  ${grp('size', 'Pond size')}${l2 ? grp('depth', 'Pond depth', POND.DESIGN_L2) : ''}${grp('plants', 'Plants along the edge')}${l2 ? grp('outlet', 'Outlet size', POND.DESIGN_L2) : ''}${l2 ? grp('rainGardens', 'Rain gardens upstream', POND.DESIGN_L2) : ''}${grp('trap', 'Sediment trap at the inlet')}${grp('fountain', 'Fountain')}
+  <div class="budget"><div class="row"><span>Build cost</span><span class="${left < 0 ? 'over' : ''}">${money(cost)} of ${money(total)}</span></div>
+  <div class="bar"><span class="${left < 0 ? 'low' : left < 8000 ? 'mid' : ''}" style="width:${Math.min(100, cost / total * 100)}%"></span></div>
   <div class="row"><span>Starts the pond fund</span><span class="${left < 0 ? 'over' : ''}">${left < 0 ? 'Over budget by ' + money(-left) : money(left)}</span></div></div>
   <div class="btnrow"><button class="btn" id="build" ${left < 0 ? 'disabled' : ''}>Build it and start year 1</button><button class="btn ghost" id="back">Back</button></div>`;
 }
@@ -191,18 +247,26 @@ function forecast(w) {
 }
 function planPanel() {
   const s = app.state, w = s.weather[s.season], f = forecast(w);
-  const cost = app.picks.reduce((t, id) => t + POND.ACTIONS.find(a => a.id === id).cost, 0) + (app.design.fountain ? POND.FOUNTAIN_POWER : 0);
-  const cards = POND.ACTIONS.map(a => {
+  const l2 = app.level === 2, cap = maxPicks(), n = s.weather.length;
+  const cost = app.picks.reduce((t, id) => t + POND.ALL_ACTIONS.find(a => a.id === id).cost, 0) + (app.design.fountain ? POND.FOUNTAIN_POWER : 0);
+  const cards = actionList().map(a => {
     const off = a.needs === 'trap' && !app.design.trap;
     const on = app.picks.includes(a.id);
-    const full = !on && app.picks.length >= 2;
+    const full = !on && app.picks.length >= cap;
     return `<button class="opt" data-act="${a.id}" aria-pressed="${on}" ${off || full ? 'disabled' : ''}><span class="tag">${a.tag}</span><span class="n">${a.name}</span><span class="c">${a.cost ? money(a.cost) : 'Free'}</span><span class="d">${off ? 'Needs a sediment trap.' : a.text}</span></button>`;
   }).join('');
-  return `<span class="eyebrow">Step 2 of 2 · Season ${s.season + 1} of 10</span>
+  const yearSoFar = s.season % 2 === 1 ? (s.history[s.season - 1] || {}).spend || 0 : 0;
+  const yearCap = app.mode === 'hurricane' ? POND.SCENARIOS.challenges[HY].annualBudget : POND.ANNUAL_BUDGET;
+  const yearTotal = yearSoFar + cost, over = yearTotal > yearCap;
+  const yearBlock = l2 ? `<div class="budget"><div class="row"><span>Spending this year${s.season % 2 === 1 ? ' (incl. last season)' : ''}</span><span class="${over ? 'over' : ''}">${money(yearTotal)} of ${money(yearCap)}</span></div>
+  <div class="bar"><span class="${over ? 'low' : yearTotal > yearCap * 0.8 ? 'mid' : ''}" style="width:${Math.min(100, yearTotal / yearCap * 100)}%"></span></div>
+  ${over ? `<div class="row"><span class="over">Over the yearly budget by ${money(yearTotal - yearCap)}.</span></div>` : ''}</div>` : '';
+  return `<span class="eyebrow">Step 2 of 2 · Season ${s.season + 1} of ${n}</span>
   <h2>Plan the ${w.season === 'wet' ? 'wet' : 'dry'} season</h2>
-  <div class="forecast ${f.alert ? 'alert' : ''}"><span class="ic">${f.ic}</span><span><b>${f.b}</b><span>${f.t}</span></span></div>
-  <div class="group"><div class="gh"><b>Choose up to 2 actions</b><span class="hint">${app.picks.length}/2 picked</span></div><div class="opts">${cards}</div></div>
+  <div class="forecast ${f.alert ? 'alert' : ''}"><span class="ic">${f.ic}</span><span><b>${f.b}</b><span>${f.t}${l2 ? ` Forecast: about ${w.rain} inches.` : ''}</span></span></div>
+  <div class="group"><div class="gh"><b>Choose up to ${cap} actions</b><span class="hint">${app.picks.length}/${cap} picked</span></div><div class="opts">${cards}</div></div>
   <div class="budget"><div class="row"><span>This season's costs${app.design.fountain ? ' (incl. $500 fountain power)' : ''}</span><span>${money(cost)}</span></div><div class="row"><span>Dues coming in</span><span>${money(POND.DUES)}</span></div></div>
+  ${yearBlock}${l2 && s.history.length ? graphs(s) : ''}
   <div class="btnrow"><button class="btn" id="run">Run the season</button><span class="hint">Doing nothing is allowed. It's free, for now.</span></div>`;
 }
 
@@ -211,13 +275,15 @@ function resultPanel() {
   const kindName = { hurricane: 'Hurricane season', tropical: 'Tropical storm', drought: 'Drought', typical: w.season === 'wet' ? 'Typical wet season' : 'Typical dry season' }[w.kind];
   const ev = r.events.map(e => `<div class="event ${['flood', 'fishkill', 'assessment'].includes(e.k) ? 'bad' : ''}">${e.t}</div>`).join('');
   const good = !r.events.some(e => ['flood', 'fishkill', 'assessment'].includes(e.k)) && w.storm ? `<div class="event ok">The pond handled the storm. No homes flooded.</div>` : '';
-  const last = s.season >= POND.SEASONS;
-  return `<span class="eyebrow">Season ${s.season} of 10 · results</span>
+  const n = s.weather.length, last = s.season >= n, l2 = app.level === 2;
+  return `<span class="eyebrow">Season ${s.season} of ${n} · results</span>
   <h2>${kindName}: <span class="rain">${w.rain} in</span> of rain${w.heat ? ', hot summer' : ''}</h2>
   ${ev || good ? `<div class="events">${ev}${good}</div>` : ''}
   <div class="whybox"><h3>Why did that happen?</h3><ul class="why">${r.why.length ? r.why.map(t => `<li>${t}</li>`).join('') : '<li>A quiet season. The pond settled out runoff as designed.</li>'}</ul></div>
+  ${l2 ? `<p class="hint">The pond reached ${r.stagePct}% of what it can hold${r.stagePct > 100 ? ', so it overflowed' : ''}.</p>` : ''}
   <p class="hint">You spent ${money(r.spend)} this season and collected ${money(POND.DUES)} in dues.</p>
-  <div class="btnrow"><button class="btn" id="next">${last ? 'See your five-year results' : 'Plan the next season'}</button></div>`;
+  ${l2 ? graphs(s) : ''}
+  <div class="btnrow"><button class="btn" id="next">${last ? (app.mode === 'hurricane' ? 'See your challenge results' : 'See your five-year results') : 'Plan the next season'}</button></div>`;
 }
 
 function sparkline(hist) {
@@ -229,9 +295,92 @@ function sparkline(hist) {
   const lastI = hist.length - 1;
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Water clarity over ten seasons">${grid}${yrs}<polygon points="${x(0)},${y(0)} ${pts} ${x(lastI)},${y(0)}" fill="var(--water-clear)" opacity=".15"/><polyline points="${pts}" fill="none" stroke="var(--water-clear)" stroke-width="2"/><circle cx="${x(lastI)}" cy="${y(100 - hist[lastI].A)}" r="3.5" fill="var(--water-clear)"/></svg>`;
 }
-function endPanel() {
-  const s = app.state, sc = POND.score(s);
+const AX = 'font-size="9" fill="var(--muted)" font-family="var(--f-mono)"';
+function seasonLabels(n, x, H) {
+  let out = '';
+  for (let i = 0; i < n; i++) out += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" ${AX}>${i % 2 === 0 ? 'W' : 'D'}${Math.floor(i / 2) + 1}</text>`;
+  return out;
+}
+function rainChart(s, upcoming) {
+  const n = s.weather.length, W = 320, H = 110, pl = 30, pr = 8, pt = 10, pb = 22;
+  const vals = s.history.map(h => h.rain);
+  const maxV = Math.max(20, ...vals, upcoming || 0);
+  const slot = (W - pl - pr) / n, x = i => pl + slot * (i + 0.5), y = v => pt + (1 - v / maxV) * (H - pt - pb);
+  const grid = [0, maxV / 2, maxV].map(v => `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${pl - 6}" y="${y(v) + 3}" text-anchor="end" ${AX}>${Math.round(v)}</text>`).join('');
+  const bars = vals.map((v, i) => `<rect x="${x(i) - slot * 0.35}" y="${y(v)}" width="${slot * 0.7}" height="${y(0) - y(v)}" rx="2" fill="var(--water-clear)"/>`).join('');
+  const next = upcoming ? `<rect x="${x(vals.length) - slot * 0.35}" y="${y(upcoming)}" width="${slot * 0.7}" height="${y(0) - y(upcoming)}" rx="2" fill="none" stroke="var(--water-clear)" stroke-dasharray="3 2"/>` : '';
+  return `<div class="chart"><span class="eyebrow">Rain each season (inches)${upcoming ? ' · dashed bar is the forecast' : ''}</span><svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Rain each season in inches: ${vals.join(', ')}${upcoming ? '. Forecast for the coming season: ' + upcoming : ''}">${grid}${bars}${next}${seasonLabels(n, x, H)}</svg></div>`;
+}
+function stageChart(s) {
+  const n = s.weather.length, W = 320, H = 110, pl = 30, pr = 8, pt = 10, pb = 22;
+  const vals = s.history.map(h => h.stage);
+  const maxV = Math.max(120, ...vals);
+  const slot = (W - pl - pr) / n, x = i => pl + slot * (i + 0.5), y = v => pt + (1 - v / maxV) * (H - pt - pb);
+  const grid = [0, 50].map(v => `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${pl - 6}" y="${y(v) + 3}" text-anchor="end" ${AX}>${v}</text>`).join('');
+  const limit = `<line x1="${pl}" x2="${W - pr}" y1="${y(100)}" y2="${y(100)}" stroke="var(--bad)" stroke-dasharray="4 3"/><text x="${pl - 6}" y="${y(100) + 3}" text-anchor="end" ${AX}>100</text>`;
+  const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const dots = vals.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="3.5" fill="${v > 100 ? 'var(--bad)' : 'var(--water-clear)'}"/>`).join('');
+  return `<div class="chart"><span class="eyebrow">How full the pond got in the worst storm (%)</span><svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Peak pond level each season as a percent of capacity: ${vals.join(', ')}. Above 100 means the pond overflowed.">${grid}${limit}${vals.length > 1 ? `<polyline points="${pts}" fill="none" stroke="var(--water-clear)" stroke-width="2"/>` : ''}${dots}${seasonLabels(n, x, H)}</svg><span class="hint">Above the red line, the pond overflows into yards.</span></div>`;
+}
+function graphs(s) {
+  const upcoming = app.phase === 'plan' && !POND.isFinished(s) ? s.weather[s.season].rain : null;
+  return `<div class="charts">${rainChart(s, upcoming)}${stageChart(s)}</div>`;
+}
+
+function scoreRows(s, sc) {
   const stars = n => `<span class="stars" aria-label="${n} of 3 stars">${[1, 2, 3].map(i => STAR(i <= n)).join('')}</span>`;
+  return `<div class="scores">
+    <div class="score"><span class="s-l"><b>Clean water</b><span>Average clarity ${Math.round(100 - sc.avgA)}/100</span></span>${stars(sc.wq)}</div>
+    <div class="score"><span class="s-l"><b>Happy neighbors</b><span>Mostly ${moodWord(sc.avgMood).toLowerCase()}</span></span>${stars(sc.looks)}</div>
+    <div class="score"><span class="s-l"><b>Pond fund</b><span>${money(s.cash)} left${s.assessments ? ` · ${s.assessments} special assessment${s.assessments > 1 ? 's' : ''}` : ''}</span></span>${stars(sc.cost)}</div>
+    <div class="score"><span class="s-l"><b>Flood protection</b><span>${s.flooded ? s.flooded + ' homes flooded' : 'Every home stayed dry'}</span></span><span class="pass ${sc.flood ? 'y' : 'n'}">${sc.flood ? 'Passed' : 'Failed'}</span></div>
+  </div>`;
+}
+function yearSpends(s) {
+  const out = [];
+  for (let i = 0; i < s.history.length; i += 2) out.push(s.history[i].spend + (s.history[i + 1] ? s.history[i + 1].spend : 0));
+  return out;
+}
+function endPanel2() {
+  const s = app.state, sc = POND.score(s);
+  const years = yearSpends(s), within = years.filter(v => v <= POND.ANNUAL_BUDGET).length;
+  return `<span class="eyebrow">Level 2 report · weather code ${app.seed}</span>
+  <h2>${sc.unlocked ? 'A well-managed pond.' : 'Your pond made it through five years.'}</h2>
+  ${scoreRows(s, sc)}
+  <div class="score"><span class="s-l"><b>Yearly budget</b><span>${within} of ${years.length} years within ${money(POND.ANNUAL_BUDGET)} · spent ${years.map(money).join(', ')}</span></span><span class="pass ${within === years.length ? 'y' : 'n'}">${within === years.length ? 'On budget' : 'Over'}</span></div>
+  <div><span class="eyebrow">Water clarity, season by season</span>${sparkline(s.history)}</div>
+  ${graphs(s)}
+  <div class="unlock"><h3>Ready for Hurricane Year?</h3><p>Four seasons, one hurricane, no second chances: no flooding, no fish kill, and every year within budget. Pass it to unlock Level 3: Pond Engineer.</p><div class="btnrow"><button class="btn" id="to-hy">Take the Hurricane Year challenge</button></div></div>
+  <div class="btnrow"><button class="btn ghost" id="again">Play again with new weather</button><button class="btn ghost" id="same">Replay code ${app.seed}</button></div>`;
+}
+function endPanelHurricane() {
+  const s = app.state, c = POND.scoreChallenge(s), cap = POND.SCENARIOS.challenges[HY].annualBudget;
+  const years = yearSpends(s);
+  if (c.passed) store.set('pond-l3', '1');
+  const row = (title, detail, ok) => `<div class="score"><span class="s-l"><b>${title}</b><span>${detail}</span></span><span class="pass ${ok ? 'y' : 'n'}">${ok ? 'Passed' : 'Failed'}</span></div>`;
+  const repairs = !c.noFlood || !c.noFishKill;
+  const tips = [];
+  if (!c.noFlood) tips.push('The hurricane brought more water than the pond could hold. Lower the pond before the storm, clear the outlet, or build more storage (a larger outlet, more depth, or rain gardens).');
+  if (!c.noFishKill) tips.push('Fish died when warm water ran low on oxygen. Fewer nutrients or a fountain would help.');
+  if (!c.withinBudget && !repairs) tips.push(`A year went over ${money(cap)}. Plan the two seasons of a year together.`);
+  if (s.assessments) tips.push('The fund ran dry and neighbors were billed. Keep some money in reserve.');
+  return `<span class="eyebrow">${POND.SCENARIOS.challenges[HY].name} · weather code ${app.seed}</span>
+  <h2>${c.passed ? 'You weathered the hurricane.' : 'The hurricane got the better of the pond.'}</h2>
+  <div class="scores">
+    ${row('No flooding', s.flooded ? `${s.flooded} home${s.flooded > 1 ? 's' : ''} flooded` : 'Every home stayed dry', c.noFlood)}
+    ${row('No fish kill', s.fishKills ? `${s.fishKills} fish kill${s.fishKills > 1 ? 's' : ''}` : 'The fish survived', c.noFishKill)}
+    ${row('Within budget', `Spent ${years.map(money).join(' and ')} against ${money(cap)} a year${repairs ? ' (includes repairs and cleanup)' : ''}`, c.withinBudget)}
+  </div>
+  ${graphs(s)}
+  ${c.passed
+    ? `<div class="unlock"><h3>Level 3 unlocked: Pond Engineer</h3><p>Level 3 is still being built. Your unlock is saved on this device.</p></div>`
+    : `<div class="unlock locked"><h3>Level 3: Pond Engineer is locked</h3><p>To unlock it, you still need:</p><ul>${tips.map(m => `<li>${m}</li>`).join('')}</ul></div>`}
+  <div class="btnrow"><button class="btn" id="again">Try again with new weather</button><button class="btn ghost" id="same">Replay code ${app.seed}</button><button class="btn ghost" id="to2">Redesign in Level 2</button></div>`;
+}
+
+function endPanel() {
+  if (app.level === 2) return app.mode === 'hurricane' ? endPanelHurricane() : endPanel2();
+  const s = app.state, sc = POND.score(s);
   if (sc.unlocked) store.set('pond-l2', '1');
   const missing = [];
   if (!sc.flood) missing.push(`No flooded homes (${s.flooded} flooded). Keep the outlet clear before storm season, or build more storage.`);
@@ -240,29 +389,32 @@ function endPanel() {
   if (sc.cost < 2) missing.push(s.assessments ? 'Two stars for the fund. You ran out of money and billed neighbors. Quick fixes add up.' : 'Two stars for the fund. End with at least $9,000 in the pond fund.');
   return `<span class="eyebrow">Five-year report · weather code ${app.seed}</span>
   <h2>${sc.unlocked ? 'Your pond is thriving.' : 'Your pond made it through five years.'}</h2>
-  <div class="scores">
-    <div class="score"><span class="s-l"><b>Clean water</b><span>Average clarity ${Math.round(100 - sc.avgA)}/100</span></span>${stars(sc.wq)}</div>
-    <div class="score"><span class="s-l"><b>Happy neighbors</b><span>Mostly ${moodWord(sc.avgMood).toLowerCase()}</span></span>${stars(sc.looks)}</div>
-    <div class="score"><span class="s-l"><b>Pond fund</b><span>${money(s.cash)} left${s.assessments ? ` · ${s.assessments} special assessment${s.assessments > 1 ? 's' : ''}` : ''}</span></span>${stars(sc.cost)}</div>
-    <div class="score"><span class="s-l"><b>Flood protection</b><span>${s.flooded ? s.flooded + ' homes flooded' : 'Every home stayed dry'}</span></span><span class="pass ${sc.flood ? 'y' : 'n'}">${sc.flood ? 'Passed' : 'Failed'}</span></div>
-  </div>
+  ${scoreRows(s, sc)}
   <div><span class="eyebrow">Water clarity, season by season</span>${sparkline(s.history)}</div>
   ${sc.unlocked
-    ? `<div class="unlock"><h3>Level 2 unlocked: Pond Manager</h3><p>Real numbers this time. Set pond depth and outlet size, add rain gardens upstream, run a yearly budget, and read rainfall and water-level graphs. Pass the Hurricane Year challenge to reach Level 3: Pond Engineer.</p><div class="btnrow"><button class="btn" disabled>Play Level 2 (in the full game)</button></div></div>`
+    ? `<div class="unlock"><h3>Level 2 unlocked: Pond Manager</h3><p>Real numbers this time. Set pond depth and outlet size, add rain gardens upstream, run a yearly budget, and read rainfall and water-level graphs. Pass the Hurricane Year challenge to reach Level 3: Pond Engineer.</p><div class="btnrow"><button class="btn" id="to2">Play Level 2</button></div></div>`
     : `<div class="unlock locked"><h3>Level 2: Pond Manager is locked</h3><p>To unlock it, you still need:</p><ul>${missing.map(m => `<li>${m}</li>`).join('')}</ul></div>`}
   <div class="btnrow"><button class="btn" id="again">Play again with new weather</button><button class="btn ghost" id="same">Replay code ${app.seed}</button></div>`;
 }
 
 /* ---------- flow ---------- */
 function render() {
-  const P = { intro: introPanel, design: designPanel, plan: planPanel, result: resultPanel, end: endPanel }[app.phase];
+  const P = { intro: app.level === 2 ? introPanel2 : introPanel, design: designPanel, plan: planPanel, result: resultPanel, end: endPanel }[app.phase];
   $('#panel').innerHTML = P();
+  $('#lvl').textContent = levelLabel();
   renderMeters(); renderWhen(); drawScene();
   bind();
 }
 function bind() {
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
-  on('go', () => { const v = parseInt(($('#seedIn') || {}).value, 10); if (v > 0) app.seed = v; app.phase = 'design'; render(); top(); });
+  const readSeed = () => { const v = parseInt(($('#seedIn') || {}).value, 10); if (v > 0) app.seed = v; };
+  const enter = (level, mode) => { app.level = level; app.mode = mode; app.design = level === 2 ? L2_DESIGN() : L1_DESIGN(); app.state = null; app.picks = []; app.flooded = new Set(); app.lastEdge = null; app.phase = 'intro'; render(); top(); };
+  on('go', () => { readSeed(); app.phase = 'design'; render(); top(); });
+  on('to2', () => enter(2, 'game'));
+  on('to1', () => enter(1, 'game'));
+  on('mode-game', () => { readSeed(); app.mode = 'game'; app.phase = 'design'; render(); top(); });
+  on('mode-hurricane', () => { readSeed(); app.mode = 'hurricane'; app.phase = 'design'; render(); top(); });
+  on('to-hy', () => { app.mode = 'hurricane'; app.state = null; app.picks = []; app.flooded = new Set(); app.lastEdge = null; app.phase = 'design'; render(); top(); });
   on('back', () => { app.phase = 'intro'; render(); });
   document.querySelectorAll('.opt[data-k]').forEach(b => b.addEventListener('click', () => { app.design[b.dataset.k] = +b.dataset.v; render(); }));
   on('build', () => { start(); });
@@ -272,17 +424,17 @@ function bind() {
     else {
       if (id === 'mow') app.picks = app.picks.filter(p => p !== 'buffer');
       if (id === 'buffer') app.picks = app.picks.filter(p => p !== 'mow');
-      if (app.picks.length < 2) app.picks.push(id);
+      if (app.picks.length < maxPicks()) app.picks.push(id);
     }
     render();
   }));
   on('run', runSeason);
-  on('next', () => { app.phase = app.state.season >= POND.SEASONS ? 'end' : 'plan'; app.picks = []; render(); top(); });
+  on('next', () => { app.phase = POND.isFinished(app.state) ? 'end' : 'plan'; app.picks = []; render(); top(); });
   on('again', () => { app.seed = 1000 + Math.floor(Math.random() * 9000); restart(); });
   on('same', restart);
 }
 function top() { if (window.matchMedia('(max-width: 820px)').matches) document.querySelector('.scene').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-function start() { app.state = POND.newGame({ ...app.design }, app.seed); app.flooded = new Set(); app.lastEdge = null; app.picks = []; app.phase = 'plan'; render(); }
+function start() { app.state = POND.newGame({ ...app.design }, app.seed, app.mode === 'hurricane' ? { scenario: HY } : {}); app.flooded = new Set(); app.lastEdge = null; app.picks = []; app.phase = 'plan'; render(); }
 function restart() { app.phase = 'design'; app.state = null; app.flooded = new Set(); app.lastEdge = null; render(); top(); }
 function runSeason() {
   const btn = $('#run'); if (btn) btn.disabled = true;
@@ -303,6 +455,5 @@ function runSeason() {
 }
 
 buildStatic();
-if (store.get('pond-l2')) $('#lvl').textContent = 'Level 1 · Level 2 unlocked';
 render();
 })();
